@@ -1,0 +1,85 @@
+* Download data from VICE: https://docs.google.com/spreadsheets/d/1CaOQ7FUYsGFCHEqGzA2hlfj69sx3GE9GoJ40OcqI9KY/edit#gid=1271324584
+
+/* For ASA 2019 in New York:
+   Analyze VICE data for differences in %fatal by city, and how different your conclusions 
+   would be if you only had the fatal shootings, as in WAPO */
+   
+tab city Fatal
+
+gen fatal = .  
+replace fatal = 1 if Fatal == "F"  
+replace fatal = 0 if Fatal == "N"  
+replace fatal = . if Fatal == "U"  
+replace fatal = . if Fatal == ""  
+replace fatal = . if Fatal == "NA"  
+tab fatal, m  
+
+tab city fatal, row
+
+gen nonfatal = .  
+replace nonfatal = 1 if fatal == 0  
+replace nonfatal = 0 if fatal == 1  
+tab nonfatal fatal
+
+tab SubjectRace
+
+gen white_shoots = 1 if SubjectRace == "W"  
+gen black_shoots = 1 if SubjectRace == "B"  
+gen latinx_shoots = 1 if SubjectRace == "L"  
+gen other_shoots = 1 if SubjectRace == "A" | SubjectRace == "O"
+
+gen white_fatals = 1 if SubjectRace == "W" & fatal == 1  
+gen black_fatals = 1 if SubjectRace == "B" & fatal == 1  
+gen latinx_fatals = 1 if SubjectRace == "L" & fatal == 1  
+gen other_fatals = 1 if (SubjectRace == "A" | SubjectRace == "O") & fatal == 1
+
+/* create nshootings so that when collpased by city, this variable will 
+   show the number of shootings each city had */  
+   
+gen nshootings = 1
+
+
+collapse (sum)  fatal nonfatal nshootings *_shoots *_fatals, by(city)  
+
+gen pct_fatal = (fatal/nshootings)*100
+
+tab pct_fatal
+
+gen pct_white = (white_shoots/nshootings)*100  
+gen pct_black = (black_shoots/nshootings)*100  
+gen pct_latinx = (latinx_shoots/nshootings)*100  
+gen pct_other = (other_shoots/nshootings)*100  
+
+gen pct_white_fat = (white_fatals/fatal)*100  
+gen pct_black_fat = (black_fatals/fatal)*100  
+gen pct_latinx_fat = (latinx_fatals/fatal)*100  
+gen pct_other_fat = (other_fatals/fatal)*100  
+
+drop if city == "Detroit" // too much missing information to be useful  
+
+
+gsort -pct_fatal  
+list city pct_fatal  
+
+/* Create a bar chart showing variation in %fatal across cities */  
+
+graph bar pct_fatal, over(city, sort(pct_fatal) descending label(angle(forty_five) labsize(vsmall))) ///  
+      blabel(bar, size(vsmall) format(%10.0f)) ytitle("% Fatal", size(medsmall)) scheme(plottig) ///  
+	    bar(1, color(plb1)) title("OIS Fatality Rates, 2010-16 (N=46 Cities)", size(medsmall))  
+	  
+gsort city  
+list city fatal pct_white_fat nshootings pct_white  
+list city fatal pct_black_fat nshootings pct_black  
+list city fatal pct_latinx_fat nshootings pct_latinx  
+
+
+/* identify cities that have complete/near complete subject race data */  
+
+gen race_complete = pct_white + pct_black + pct_latinx + pct_other  
+
+gsort -race_complete  
+list city race_complete
+
+/* for overall summary statistics, only include cities with at least 95% complete race data */  
+
+sum pct_* if race_complete >= 95
