@@ -7,10 +7,10 @@
 ***************************************************************/
  
 * Set working directory to save tables/figures
-	cd "$\Figures"  
+	cd "~\Figures"  
 
 * Call up the data
-	use "$\gva_incidents.dta", replace
+	use "~\gva_incidents.dta", replace
 	
 * Tally up the ToRemove cases
 	tab ToRemove // Remove 510 of 1977 cases, Analytic N = 1467
@@ -111,7 +111,7 @@
 			|| lfit nonfatal moyear, lc(plb1) lp(shortdash) ///
 			|| lfit total moyear, lc(gs0) lp(shortdash)
 				  
-		graph export "$\fig1.pdf", replace
+		graph export "fig1.pdf", replace
 		  
 	restore
 
@@ -160,7 +160,7 @@
 
 		gsort state
 		gen ID = _n
-		merge 1:1 ID using "$\police employee data 2013-19.dta"
+		merge 1:1 ID using "~\police employee data 2013-19.dta"
 		list state State_full State_postal // check that everything lines up
 		drop State_full
 		rename state State_full
@@ -180,7 +180,7 @@
 				yline (28.77) text(36 40 "Mean=28.77", size(vsmall) c(red)) ///
 				bar(1, c(gs16) lw(vvthin) lc(gs0)) ytitle("Total Firearm Assaults" "(6-Year Sum)") blabel(total, pos(outside))
 			
-			graph export "$\fig3.pdf", replace
+			graph export "fig3.pdf", replace
 			
 		***************************************************************************
 		/* SUPPLEMENT TO F3: Bar chart showing # of assaults per state, per year */
@@ -199,7 +199,7 @@
 				bar(1, c(plb1) lw(vvthin) lc(gs0)) ytitle("") blabel(total, pos(outside)) name(state19, replace)
 
 			graph combine state14 state15 state16 state17 state18 state19, rows(2) altshrink
-			graph export "$\fig3_sup.pdf"
+			graph export "fig3_sup.pdf"
 			
 			
 		egen avgsworn = rmean(sworn*)
@@ -257,7 +257,7 @@
 			maptile avg_overall, geo(state) cutv(.093 .281 .469 .657 .845 1.032 1.220) ///
 				fc(YlOrRd) ///
 				twopt(legend(size(small))) ///
-				savegraph("$\fig4.pdf") replace
+				savegraph("fig4.pdf") replace
 				   
 		***************************************************************	   
 		/***** FIGURE 5: Bar chart showing precise assault rates *****/
@@ -267,7 +267,7 @@
 				bar(1, c(plb1) lw(vvthin) lc(gs0)) ///
 				ytitle("Firearm Assault Rate" "(6-Year Average)") blabel(total, pos(outside) format(%4.2f)) name(officers, replace)
 
-			graph export "$\fig5.pdf", replace
+			graph export "fig5.pdf", replace
 		   
 		************************************************************************************************************
 		/***** FOR APPENDIX: Show results if we used presumably more reliable denominators for IN, MS, and WV 
@@ -293,7 +293,7 @@
 				bar(1, c(plb1) lw(vvthin) lc(gs0)) ///
 				ytitle("Firearm Assault Rate" "(6-Year Average)") blabel(total, pos(outside) format(%4.2f)) 
 
-			graph export "$\appD.pdf", replace
+			graph export "appD.pdf", replace
 			
 
 	***************************************************
@@ -359,7 +359,7 @@
 				|| lfit nonfatal year, lc(plb1) lp(shortdash) text(33 2018.5 "y= 0.772x + 27.782", size(tiny) c(plb1)) ///
 				|| lfit overall year, lc(gs0) lp(shortdash) text(39 2018.5 "y= 0.750x + 34.103", size(tiny))
 
-			graph export "$\fig2.pdf", replace
+			graph export "fig2.pdf", replace
 		   		   
 		* look how the fitted line changes with 2015 as start point
 			drop if year == 2014
@@ -373,6 +373,6 @@
 				|| lfit nonfatal year, lc(plb1) lp(shortdash) text(32 2018.5 "y= -0.573x + 33.487", size(tiny) c(plb1)) ///
 				|| lfit overall year, lc(gs0) lp(shortdash) text(38 2018.5 "y= -0.730x + 40.280", size(tiny))
 					  
-			graph export "$\appE.pdf", replace
+			graph export "appE.pdf", replace
 			   
 	restore
