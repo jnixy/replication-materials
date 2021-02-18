@@ -36,7 +36,7 @@ recode Guard* MPV* WAPO* (0 = .)
 	line FE_NV year, lc("27 158 119") lw(medthick) ///
 	|| line FE_V year, lc("117 112 179") lw(medthick) ///
 	title("People Killed by U.S. Police Officers", size(small)) ///
-	subtitle("According to Fatal Encounters", size(vsmall)) ///
+	subtitle("By Cause of Death", size(vsmall)) ///
 	legend(pos(6) size(vsmall) rows(1) label(1 "Non-Vehicular") label(2 "Vehicular")) ///
 	plotr(fc(gs16) lc(gs8)) ///
 	yla(0(200)1600, labs(vsmall)) yscale(range(0(200)1600)) ytitle("") ///
