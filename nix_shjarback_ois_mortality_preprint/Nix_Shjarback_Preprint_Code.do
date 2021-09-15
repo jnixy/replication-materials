@@ -1,7 +1,8 @@
 * Factors associated with police shooting mortality: A focus on race and a plea for more comprehensive data
 * With John Shjarback
 * Revised & Resubmitted on 6/29/2021
-* Code last updated by JN 6/29/2021 
+* Second R&R on 9/9/2021, resubmitted 9/15/2021
+* Code last updated by JN 9/14/2021 
 
 * Note that to create Figures S1-S4, you need to install Michael Stepner's -maptile- and -spmap- commands (see https://michaelstepner.com/maptile/).
 * Uncomment the next three lines to install the necessary packages and files. 
@@ -187,6 +188,7 @@
 * merge in the florida hospital data that John put together
 	preserve
 		import excel "$florida\fl_county_hospital.xlsx", sheet("Sheet1") firstrow clear
+		rename fips county
 		save "$florida\fl_county_hospital.dta", replace
 	restore
 
@@ -207,13 +209,21 @@
 	tab trauma_ord
 	
 	tab trauma_dum fatal, row
+	
+	rename metro_non metro
+	label define metrol 1 "Metropolitan Area" 0 "Non-metropolitan area"
+	label values metro metrol
+	tab metro
+	
+	gen urbanicity = 10 - rucc_2013 // see https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/documentation/
+	tab urbanicity 
 			
 * Save FL data into a new dataset that'll store a pooled sample
 	preserve
 		drop if fatal == .
 		gen state = "FL"
 		gen pool_ID = _n
-		keep state pool_ID fatal race_group male age age_cat mental_illness deadly_weap weapon_cat trauma_dum trauma_ord county
+		keep state pool_ID fatal race_group male age age_cat mental_illness deadly_weap weapon_cat trauma_dum trauma_ord county metro urbanicity 
 		save "$pool\pooled_sample.dta", replace
 	restore
 		
@@ -391,6 +401,7 @@
 * merge in the colorado hospital data that John put together
 	preserve
 		import excel "$colorado\co_county_hospital.xlsx", sheet("Sheet1") firstrow clear
+		rename fips county
 		save "$colorado\co_county_hospital.dta", replace
 	restore
 
@@ -410,6 +421,14 @@
 	replace trauma_ord = 3 if trauma_count >= 3
 	tab trauma_ord
 	
+	rename metro_non metro
+	label define metrol 1 "Metropolitan Area" 0 "Non-metropolitan area"
+	label values metro metrol
+	tab metro
+	
+	gen urbanicity = 10 - rucc_2013 // see https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/documentation/
+	tab urbanicity 
+	
 	* If victim had a Race listed, but Ethnicity was listed as "Not known," recode hispanic to 0 (N=35)
 		replace hispanic = 0 if Race2 == 1 & hispanic == .
 		replace hispanic = 0 if Race2 == 2 & hispanic == .
@@ -428,7 +447,7 @@
 		drop if fatal == .
 		gen state = "CO"
 		gen pool_ID = _n + 823
-		keep state pool_ID fatal race_group male age age_cat mental_illness deadly_weap weapon_cat trauma_dum trauma_ord county
+		keep state pool_ID fatal race_group male age age_cat mental_illness deadly_weap weapon_cat trauma_dum trauma_ord county metro urbanicity
 		merge 1:1 pool_ID using "$pool\pooled_sample.dta"
 		save "$pool\pooled_sample.dta", replace
 	restore
@@ -455,7 +474,7 @@
 
 **********
 * IMPORT/CLEAN TEXAS AG DATA
-	use "$texas\tx_ois_county_individuals.dta", clear
+	use "$texas\tx_ois_county_individuals", clear
 	
 	gen state = 48
 	rename county county_name
@@ -523,13 +542,21 @@
 	replace trauma_ord = 3 if trauma_count >= 3
 	tab trauma_ord
 	
+	rename metro_non metro
+	label define metrol 1 "Metropolitan Area" 0 "Non-metropolitan area"
+	label values metro metrol
+	tab metro
+	
+	gen urbanicity = 10 - rucc_2013 // see https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/documentation/
+	tab urbanicity 
+	
 * Save TX data into pooled dataset
 	preserve
 		drop if fatal == .
 		rename state state2
 		gen state = "TX"
 		gen pool_ID = _n + 1227
-		keep state pool_ID fatal race_group male age age_cat deadly_weap weapon_cat trauma_dum trauma_ord county
+		keep state pool_ID fatal race_group male age age_cat deadly_weap weapon_cat trauma_dum trauma_ord county metro urbanicity
 		merge 1:1 pool_ID using "$pool\pooled_sample.dta", gen(_merge2)
 		save "$pool\pooled_sample.dta", replace
 	restore
@@ -813,13 +840,22 @@
 	replace trauma_ord = 3 if trauma_count >= 3
 	tab trauma_ord
 	
+	rename metro_non metro
+	label define metrol 1 "Metropolitan Area" 0 "Non-metropolitan area"
+	label values metro metrol
+	tab metro
+	
+	gen urbanicity = 10 - rucc_2013 // see https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/documentation/
+	tab urbanicity 
+
+	
 * Save CA data into pooled dataset		
 	preserve
 		drop if fatal == .
 		rename state state2
 		gen state = "CA"
 		gen pool_ID = _n + 1979
-		keep state pool_ID fatal race_group wound male age_cat mental_illness deadly_weap deadly_weap_alt weapon_cat trauma_dum trauma_ord county
+		keep state pool_ID fatal race_group wound male age_cat mental_illness deadly_weap deadly_weap_alt weapon_cat trauma_dum trauma_ord county metro urbanicity
 		merge 1:1 pool_ID using "$pool\pooled_sample.dta", gen(_merge3)
 		save "$pool\pooled_sample.dta", replace
 	restore
@@ -880,7 +916,7 @@ log using "$output\results", replace
 	margins, dydx(race_group) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 * Table 1, Model 2: Full model for Pooled Sample
-	logit fatal i.race_group i.male i.age_cat i.deadly_weap i.trauma_dum i.stateFE, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	logit fatal i.race_group i.male i.age_cat i.deadly_weap i.trauma_dum i.metro i.stateFE, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	est tab, p(%12.10g)
 	margins race_group, atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
@@ -892,9 +928,10 @@ log using "$output\results", replace
 	margins, dydx(age_cat) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(deadly_weap) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(trauma_dum) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	margins, dydx(metro) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(stateFE) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
-	collin fatal race_group male age_cat deadly_weap trauma_dum stateFE
+	collin fatal race_group male age_cat deadly_weap trauma_dum metro stateFE
 	
 * Table S1: Proportion of covariates that were fatal and nonfatal in each state
 	tab race_group fatal if stateFE==0, row m
@@ -922,14 +959,19 @@ log using "$output\results", replace
 	tab trauma_dum fatal if stateFE==2, row m
 	tab trauma_dum fatal if stateFE==3, row m
 	
+	tab metro fatal if stateFE==0, row m
+	tab metro fatal if stateFE==1, row m
+	tab metro fatal if stateFE==2, row m
+	tab metro fatal if stateFE==3, row m
+	
 	tab mental_illness fatal if stateFE==0, row m
 	tab mental_illness fatal if stateFE==1, row m
 	tab mental_illness fatal if stateFE==3, row m
 	
 	tab wound fatal if stateFE==3, row m
 	
-* Table S2: Ordinal Trauma Care variable for Pooled Sample
-	logit fatal i.race_group i.male i.age_cat i.deadly_weap i.trauma_ord i.stateFE, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+* Table S2: Ordinal Trauma Care & continuous urbanicity variables for Pooled Sample
+	logit fatal i.race_group i.male i.age_cat i.deadly_weap i.trauma_ord urbanicity i.stateFE, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins race_group, atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	marginsplot, recast(scatter) ytitle("Pr(Fatal)", size(small)) yscale(range(.4(.1).8)) ylabel(.4(.1).8, labs(small)) xlabel(,labs(small)) xtitle("") title("")
 	margins, dydx(race_group) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
@@ -937,6 +979,7 @@ log using "$output\results", replace
 	margins, dydx(age_cat) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(deadly_weap) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(trauma_ord) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	margins, dydx(urbanicity) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(stateFE) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 
 * Table S3, Model 1: Race only for Florida
@@ -944,7 +987,7 @@ log using "$output\results", replace
 	margins, dydx(race_group) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 * Table S3, Model 2: Full model for Florida
-	logit fatal i.race_group i.male c.age i.mental_illness i.deadly_weap i.trauma_dum if stateFE ==0, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	logit fatal i.race_group i.male c.age i.mental_illness i.deadly_weap i.trauma_dum i.metro if stateFE ==0, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	est tab, p(%12.10g)
 	margins, dydx(race_group) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(male) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
@@ -952,13 +995,14 @@ log using "$output\results", replace
 	margins, dydx(mental_illness) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(deadly_weap) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(trauma_dum) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	margins, dydx(metro) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 * Table S4, Model 1: Race only for Colorado
 	logit fatal i.race_group if stateFE ==1, asis cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(race_group) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 * Table S4, Model 2: Full model for Colorado
-	logit fatal i.race_group i.male c.age i.mental_illness i.deadly_weap i.trauma_dum if stateFE ==1, asis cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	logit fatal i.race_group i.male c.age i.mental_illness i.deadly_weap i.trauma_dum i.metro if stateFE ==1, asis cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	est tab, p(%12.10g)
 	margins, dydx(race_group) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(male) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
@@ -966,33 +1010,37 @@ log using "$output\results", replace
 	margins, dydx(mental_illness) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(deadly_weap) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(trauma_dum) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	margins, dydx(metro) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 * Table S5, Model 1: Race only for Texas
 	logit fatal i.race_group if stateFE ==2, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(race_group) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 * Table S5, Model 2: Full model for Texas
-	logit fatal i.race_group i.male c.age i.deadly_weap i.trauma_dum if stateFE ==2, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	logit fatal i.race_group i.male c.age i.deadly_weap i.trauma_dum i.metro if stateFE ==2, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	est tab, p(%12.10g)
 	margins, dydx(race_group) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(male) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(age) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(deadly_weap) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(trauma_dum) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	margins, dydx(metro) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 * Table S6, Model 1: Race only for California
 	logit fatal i.race_group if stateFE ==3, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(race_group) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 * Table S6, Model 2: Full model for California
-	logit fatal i.race_group i.male i.wound i.age_cat i.mental_illness i.deadly_weap_alt i.trauma_dum if stateFE ==3, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	logit fatal i.race_group i.male i.wound i.age_cat i.mental_illness i.deadly_weap_alt i.trauma_dum i.metro if stateFE ==3, cluster(county) cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	est tab, p(%12.10g)
 	margins, dydx(race_group) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(male) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	margins, dydx(wound) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(age_cat) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(mental_illness) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(deadly_weap_alt) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	margins, dydx(trauma_dum) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
+	margins, dydx(metro) atmeans cformat(%4.3f) sformat(%4.3f) pformat(%4.3f)
 	
 log close
 ***
@@ -1166,41 +1214,44 @@ log close
 	
 
 * Figure 3: Dot plot showing proportion of shootings that were fatal across each covariate in each state for pooled sample analysis
-* So this figure just plots %fatal by state for each row from Table S1 (minus mental illness, head/torso shot, and the "undetermined" rows)
+* So this figure just plots %fatal by state for each row from Table S1 (minus the "undetermined" rows)
 	clear
-	set obs 68
+	set obs 76
 
 	gen florida = .
-	replace florida = 1 in 1/17
+	replace florida = 1 in 1/19
 	gen colorado = .
-	replace colorado = 1 in 18/34
+	replace colorado = 1 in 20/38
 	gen texas = .
-	replace texas = 1 in 35/51
+	replace texas = 1 in 39/57
 	gen cali = .
-	replace cali = 1 in 52/68
+	replace cali = 1 in 58/76
 
-	gen cell = 1 if mod(_n, 17) == 1
-	replace cell =  2 if mod((_n+16), 17) == 1
-	replace cell =  3 if mod((_n+15), 17) == 1
-	replace cell =  4 if mod((_n+14), 17) == 1
-	replace cell =  5 if mod((_n+13), 17) == 1
-	replace cell =  6 if mod((_n+12), 17) == 1
-	replace cell =  7 if mod((_n+11), 17) == 1
-	replace cell =  8 if mod((_n+10), 17) == 1
-	replace cell =  9 if mod((_n+9), 17) == 1
-	replace cell = 10 if mod((_n+8), 17) == 1
-	replace cell = 11 if mod((_n+7), 17) == 1
-	replace cell = 12 if mod((_n+6), 17) == 1
-	replace cell = 13 if mod((_n+5), 17) == 1
-	replace cell = 14 if mod((_n+4), 17) == 1
-	replace cell = 15 if mod((_n+3), 17) == 1
-	replace cell = 16 if mod((_n+2), 17) == 1
-	replace cell = 17 if mod((_n+1), 17) == 1
+	gen cell = 1 if mod(_n, 19) == 1
+	replace cell =  2 if mod((_n+18), 19) == 1
+	replace cell =  3 if mod((_n+17), 19) == 1
+	replace cell =  4 if mod((_n+16), 19) == 1
+	replace cell =  5 if mod((_n+15), 19) == 1
+	replace cell =  6 if mod((_n+14), 19) == 1
+	replace cell =  7 if mod((_n+13), 19) == 1
+	replace cell =  8 if mod((_n+12), 19) == 1
+	replace cell =  9 if mod((_n+11), 19) == 1
+	replace cell = 10 if mod((_n+10), 19) == 1
+	replace cell = 11 if mod((_n+9), 19) == 1
+	replace cell = 12 if mod((_n+8), 19) == 1
+	replace cell = 13 if mod((_n+7), 19) == 1
+	replace cell = 14 if mod((_n+6), 19) == 1
+	replace cell = 15 if mod((_n+5), 19) == 1
+	replace cell = 16 if mod((_n+4), 19) == 1
+	replace cell = 17 if mod((_n+3), 19) == 1
+	replace cell = 18 if mod((_n+2), 19) == 1
+	replace cell = 19 if mod((_n+1), 19) == 1
 	label define celll 1 "Overall" 2 "White" 3 "Black" 4 "Hispanic" 5 "Asian" 6 "Other Race" ///
 					   7 "Male" 8 "Female" ///
 					   9 "Age <= 25" 10 "Age 26-35" 11 "Age 36-45" 12 "Age 46+" ///
 					   13 "Deadly Weapon" 14 "Toy/BB Gun" 15 "Unarmed"  ///
-					   16 "Trauma Center" 17 "No Trauma Center" 
+					   16 "Trauma Center" 17 "No Trauma Center" ///
+					   18 "Metro County" 19 "Non-metro County"
 	label values cell celll
 	tab cell
 
@@ -1221,60 +1272,68 @@ log close
 	replace florida = .43 in 15
 	replace florida = .52 in 16
 	replace florida = .70 in 17
+	replace florida = .54 in 18
+	replace florida = .72 in 19
 
-	replace colorado = .63 in 18
-	replace colorado = .65 in 19
-	replace colorado = .51 in 20
-	replace colorado = .63 in 21
-	replace colorado = 1.0 in 22
-	replace colorado = 1.0 in 23
-	replace colorado = .64 in 24
-	replace colorado = .35 in 25
-	replace colorado = .58 in 26
-	replace colorado = .59 in 27
-	replace colorado = .70 in 28
-	replace colorado = .68 in 29
-	replace colorado = .64 in 30
-	replace colorado = . in 31
-	replace colorado = .43 in 32
-	replace colorado = .63 in 33
-	replace colorado = .65 in 34
+	replace colorado = .63 in 20
+	replace colorado = .65 in 21
+	replace colorado = .51 in 22
+	replace colorado = .63 in 23
+	replace colorado = 1.0 in 24
+	replace colorado = 1.0 in 25
+	replace colorado = .64 in 26
+	replace colorado = .35 in 27
+	replace colorado = .58 in 28
+	replace colorado = .59 in 29
+	replace colorado = .70 in 30
+	replace colorado = .68 in 31
+	replace colorado = .64 in 32
+	replace colorado = . in 33
+	replace colorado = .43 in 34
+	replace colorado = .63 in 35
+	replace colorado = .65 in 36
+	replace colorado = .63 in 37
+	replace colorado = .69 in 38
 
-	replace texas = .53 in 35
-	replace texas = .57 in 36
-	replace texas = .44 in 37
-	replace texas = .54 in 38
-	replace texas = .70 in 39
-	replace texas = .83 in 40
-	replace texas = .52 in 41
-	replace texas = .57 in 42
-	replace texas = .44 in 43
-	replace texas = .53 in 44
-	replace texas = .58 in 45
-	replace texas = .59 in 46
-	replace texas = .56 in 47
-	replace texas = . in 48
-	replace texas = .35 in 49
-	replace texas = .51 in 50
+	replace texas = .53 in 39
+	replace texas = .57 in 40
+	replace texas = .44 in 41
+	replace texas = .54 in 42
+	replace texas = .70 in 43
+	replace texas = .83 in 44
+	replace texas = .52 in 45
+	replace texas = .57 in 46
+	replace texas = .44 in 47
+	replace texas = .53 in 48
+	replace texas = .58 in 49
+	replace texas = .59 in 50
 	replace texas = .56 in 51
+	replace texas = . in 52
+	replace texas = .35 in 53
+	replace texas = .51 in 54
+	replace texas = .56 in 55
+	replace texas = .52 in 56
+	replace texas = .60 in 57
 
-	replace cali = .56 in 52
-	replace cali = .57 in 53
-	replace cali = .51 in 54
-	replace cali = .55 in 55
-	replace cali = .67 in 56
-	replace cali = .51 in 57
 	replace cali = .56 in 58
-	replace cali = .44 in 59
-	replace cali = .46 in 60
-	replace cali = .57 in 61
-	replace cali = .58 in 62
-	replace cali = .65 in 63
-	replace cali = .59 in 64
-	replace cali = .63 in 65
-	replace cali = .39 in 66
-	replace cali = .56 in 67
-	replace cali = .51 in 68
+	replace cali = .57 in 59
+	replace cali = .51 in 60
+	replace cali = .55 in 61
+	replace cali = .67 in 62
+	replace cali = .51 in 63
+	replace cali = .56 in 64
+	replace cali = .44 in 65
+	replace cali = .46 in 66
+	replace cali = .57 in 67
+	replace cali = .58 in 68
+	replace cali = .65 in 69
+	replace cali = .59 in 70
+	replace cali = .63 in 71
+	replace cali = .39 in 72
+	replace cali = .56 in 73
+	replace cali = .51 in 74
+	replace cali = .56 in 75
+	replace cali = .50 in 76
 
 	graph dot florida colorado texas cali, over(cell) ///
 		yscale(range(0(.1)1)) ylabel(0(.1)1) ///
