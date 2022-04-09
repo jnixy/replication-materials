@@ -4,6 +4,9 @@
 * Uncomment & install cleanplot scheme if you want
 	* net install cleanplots, from("https://tdmize.github.io/data/cleanplots")
 	* set scheme cleanplots, perm
+	
+* Also need waffle package
+	* ssc install waffle
 
 * Call up the data from WAPO's github repo
 	import delimited "https://raw.githubusercontent.com/washingtonpost/data-police-shootings/master/fatal-police-shootings-data.csv", clear
@@ -48,7 +51,7 @@ preserve
 			fois[_n]+ ///
 			fois[_n+3]+fois[_n+2]+fois[_n+1])/7
 			
-	* Run a loop tha tplots 2015-20
+	* Run a loop that plots 2015-20
 		forval i = 2015(1)2020 {
 			twoway scatter fois oisdate if year == `i', mc(%35) || line smooth7 oisdate if year == `i', lc(blue) lw(medthick) yscale(range(0(5)10)) ylabel(0(5)10, labs(vsmall)) ymtick(1(1)10) leg(off) name(y`i', replace) plotr(margin(0 0 0 0)) graphr(margin(1 1 2 2)) xlabel(none) xtitle("") xscale(off fill) ytitle({bf:`i'}, size(small)) nodraw
 			}
@@ -66,31 +69,39 @@ preserve
 restore
 
 * Figure 2. Decedent sex
-	graph bar (sum) fois, by(gender, note("* NOTE: Sex missing for 4 decedents", size(vsmall) pos(5) margin(0 0 0 2))) ytitle("Count", size(medsmall)) blabel(total, pos(outside) size(medsmall))
+	gen male = 1 if gender == "M"
+	gen female = 1 if gender == "F"
+	
+	foreach i in male female fois {
+		egen tot_`i' = sum(`i')
+	}
+	
+	gen pct_tot_male = tot_male/tot_fois
+	gen pct_tot_female = tot_female/tot_fois
+	gen pct_us_male = .49
+	gen pct_us_female = .51
+	
+	waffle pct_tot_male pct_tot_female, wide name(gender_fois, replace) title("Males comprise 95% of people fatally shot by police", size(medsmall)) mark(4)
+	waffle pct_us_male pct_us_female, wide name(gender_us, replace) title("Males comprise 49% of the US population", size(medsmall)) leg(pos(6) size(small) rows(1) label(1 "Male") label(2 "Female") label(3 "Undetermined")) mark(4)
+	
+	graph combine gender_fois gender_us, rows(2)
 
 * Figure 3. Age distribution
 	hist age if year < 2021, freq ytitle("Count", size(medsmall)) xtitle("Age", size(medsmall)) xscale(range(0(10)100)) xlabel(0(10)100, labs(small)) xmtick(5(5)95) title("Decedent Age Distribution, 2015-2020", size(medsmall)) width(1) note("* NOTE: Age missing for 239 decedents", size(vsmall) pos(5) margin(0 0 0 2))
 	
-* Figure 4. Race breakdown
-	gen asian = 1 if race == "A"
-	replace asian = 0 if race != "A" & race != ""
+* Figure 4. Race/ethnicity
+	gen race2 = 1 if race == "W"
+	replace race2 = 2 if race == "B"
+	replace race2 = 3 if race == "H"
+	replace race2 = 4 if race == "A"
+	replace race2 = 5 if race == "N"
+	replace race2 = 6 if race == "O"
+	replace race2 = 7 if race == ""
+	label define race2 1 "White" 2 "Black" 3 "Hispanic" 4 "Asian" 5 "Native American" 6 "Other" 7 "Undetermined"
+	label values race2 race2
+	tab race2
 	
-	gen black = 1 if race == "B"
-	replace black = 0 if race != "B" & race != ""
-	
-	gen hispanic = 1 if race == "H"
-	replace hispanic = 0 if race != "H" & race != ""
-	
-	gen native = 1 if race == "N"
-	replace native = 0 if race != "N" & race != ""
-	
-	gen other = 1 if race == "O"
-	replace other = 0 if race != "O" & race != ""
-	
-	gen white = 1 if race == "W"
-	replace white = 0 if race != "W" & race != ""
-	
-	graph bar (mean) white black hispanic asian native other if year < 2021, ytitle("Percent", size(medsmall)) blabel(total, pos(outside) size(medsmall)) blabel(total, pos(outside) format(%4.2f)) ytitle("Proportion of Total", size(medsmall)) leg(off) showyvars yvar(relabel(1 "White" 2 "Black" 3 "Hispanic" 4 "Asian" 5 "Native American" 6 "Other")) bargap(5) title("Decedent Race/Ethnicity Breakdown, 2015-2020", size(medsmall)) note("* NOTE: Race/ethnicity missing for 474 decedents", size(vsmall) pos(5) margin(0 0 0 2))
+	graph bar (percent) fois if year < 2021, over(race2) ytitle("Percent", size(medsmall)) blabel(total, pos(outside) size(mesmall) format(%4.2f)) title("Race/Ethnicity of Decedents, 2015-2020", size(medsmall)) 
 	
 * Figure 4. Weapon
 	tab armed
@@ -143,7 +154,8 @@ preserve
 	
 restore
 
-* Figure 8. Fatality rates in 46 largest departments (From VICE)
+* Figure 8. Fatality rates in 46 largest departments
+* Pull data from VICE
 	import delimited "https://raw.githubusercontent.com/vicenews/shot-by-cops/master/subject_data.csv", clear
 	
 	gen fatality = 1 if regexm(fatal, "F") == 1
@@ -170,8 +182,49 @@ restore
 		separate rate, by(city == "Atlanta" | city == "Boston")
 		
 		graph bar rate0 rate1, over(city, sort(rate) descending lab(labs(vsmall) angle(45)))nofill blabel(total, pos(outside) size(vsmall) orient(vertical) format(%4.0f)) ytitle("Fatality Rate", size(medsmall)) title("Police Shooting Fatality Rates, 2010-16", size(medsmall)) note("* NOTE: Detroit had 111 police shootings over this period but did not indicate their outcomes.", size(vsmall) pos(5) margin(0 0 0 2)) leg(off) text(58 65 "Boston had 10 fatal shootings ({bf:14 total})") text(50 65 "Atlanta had 10 fatal shootings ({bf:43 total})")
+		
+* Figure 10. Omaha Police Shootings
+* 2010-2019 data provided by OPD to Omaha World-Herald for this story: <https://omaha.com/news/local/crime-and-courts/use-of-force-rare-among-omaha-police-decrease-in-shootings-impressive-expert-says/article_31f8b976-5dba-558e-89b1-61998e619e24.html>
+* I got 2020-21 data by searching for "officer involved shooting" on OPD's Press Releases page: <https://police.cityofomaha.org/press-releases/listid-4>
+clear
 
-* Figure 10. Cops killed by knives or blunt objects each year 
+set obs 12
+
+gen year = _n + 2009
+
+gen fatal = .
+replace fatal = 6 if year == 2010
+replace fatal = 0 if year == 2011
+replace fatal = 1 if year == 2012
+replace fatal = 3 if year == 2013
+replace fatal = 3 if year == 2014
+replace fatal = 3 if year == 2015
+replace fatal = 3 if year == 2016
+replace fatal = 1 if year == 2017
+replace fatal = 1 if year == 2018
+replace fatal = 1 if year == 2019
+replace fatal = 1 if year == 2020
+replace fatal = 1 if year == 2021
+
+gen nonfatal = .
+replace nonfatal = 5 if year == 2010
+replace nonfatal = 9 if year == 2011
+replace nonfatal = 4 if year == 2012
+replace nonfatal = 3 if year == 2013
+replace nonfatal = 2 if year == 2014
+replace nonfatal = 0 if year == 2015
+replace nonfatal = 4 if year == 2016
+replace nonfatal = 3 if year == 2017
+replace nonfatal = 3 if year == 2018
+replace nonfatal = 0 if year == 2019
+replace nonfatal = 0 if year == 2020
+replace nonfatal = 2 if year == 2021
+
+gen ois = fatal + nonfatal
+
+graph bar fatal nonfatal, over(year) stack leg(pos(6) size(small) rows(1) label(1 "Fatal") label(2 "Nonfatal")) yscale(range(0(3)12)) ylabel(0(3)12) ymtick(1(1)11) title("OPD Shootings, 2010-2021", size(medsmall)) 
+
+* Figure 11. Cops killed by knives or blunt objects each year 
 * (2010-19 figures from https://ucr.fbi.gov/leoka/2019/tables/table-28.xls)
 * (2020-21 figures from the December monthly infographics available for download here: https://crime-data-explorer.app.cloud.gov/pages/le/leoka)
 clear
@@ -210,3 +263,4 @@ replace gun = 42 if year == 2020
 replace gun = 61 if year == 2021
 
 graph bar gun knife blunt_obj pers_weap, over(year) leg(pos(6) rows(1) label(1 "Gun") label(2 "Knife") label(3 "Blunt Object") label(4 "Hands/Fist/Feet/Etc")) blabel(total, pos(outside) size(small)) title("Law Enforcement Officers Feloniously Killed, 2010-2021") subtitle("By Type of Weapon Used")
+
